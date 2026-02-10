@@ -21,6 +21,7 @@ void catch_int(int sig_num)
      * exit or not */
     printf("\nReally exit? [Y/n]: ");
     fflush(stdout);
+    alarm(5);
     fgets(answer, sizeof(answer), stdin);
     if (answer[0] == 'n' || answer[0] == 'N') {
       printf("\nContinuing\n");
@@ -29,6 +30,7 @@ void catch_int(int sig_num)
        * Reset Ctrl-C counter
        */
       ctrl_c_count = 0;
+      alarm(0);
     }
     else {
       printf("\nExiting...\n");
@@ -51,7 +53,7 @@ void catch_tstp(int sig_num)
 /* If the user DOES NOT RESPOND before the alarm time elapses, the program should exit */
 /* If the user RESPONDEDS before the alarm time elapses, the alarm should be cancelled */
 void catch_alarm(int sig_num){
-  printf("\nUser taking too long to respond. Exiting  . . .");
+  printf("\nUser taking too long to respond. Exiting  . . .\n");
   fflush(stdout);
   exit(0);
 }
@@ -64,7 +66,7 @@ int main(int argc, char* argv[])
   /* clear the memory at sa - by filling up the memory location at sa with the value 0 till the size of sa, using the function memset */
   /* type "man memset" on the terminal and take reference from it */
   /* if the sa memory location is reset this way, then no garbage value can create undefined behavior with the signal handlers */
-  memset(sa, 0, sizeof(sa));
+  memset(&sa, 0, sizeof(sa));
 
   sigset_t mask_set;  /* used to set a signal masking set. */
 
@@ -73,21 +75,29 @@ int main(int argc, char* argv[])
   sigemptyset(&mask_set); // empty mask_set
   sigaddset(&mask_set, 2); // SIGINT
   sigaddset(&mask_set, 18); // SIGTSTP
+  sigaddset(&mask_set, 20); // SIGTSTP
+  sigaddset(&mask_set, 24); // SIGTSTP
   sigaddset(&mask_set, 14); // SIGALRM
   
   /* STEP - 4 (10 points) */
   /* ensure in the mask_set that the alarm signal does not get blocked while in another signal handler */
-  //YOUR CODE
+  sigdelset(&mask_set, 14);
+
+  sa.sa_mask = mask_set;
   
   /* STEP - 5 (20 points) */
   /* set signal handlers for SIGINT, SIGTSTP and SIGALRM */
   signal(2, catch_int);
   signal(18, catch_tstp);
-  signal(14, catch_tstp);
+  signal(20, catch_tstp);
+  signal(24, catch_tstp);
+  signal(14, catch_alarm);
   
   /* STEP - 6 (10 points) */
   /* ensure that the program keeps running to receive the signals */
-  //YOUR CODE
+  while (1) {
+    pause();
+  }
 
   return 0;
 }
