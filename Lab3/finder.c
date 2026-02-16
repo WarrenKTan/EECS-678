@@ -44,8 +44,10 @@ int main(int argc, char *argv[])
 		//So, redirect standard output of this child process to p1's write end - written data will be automatically available at pipe p1's read end
 		//And, close all other pipe ends except the ones used to redirect the above OUTPUT (very important)
 
-    // fd[0] is the read end of the pipe
-    // fd[1] is the write end of the pipe
+    // p1[0] is the read end of the pipe
+    // p1[1] is the write end of the pipe
+    dup2(p1[1], STDOUT_FILENO);
+    // Output of the process is sent to the pipe
 
     //STEP 3
     //Prepare a command string representing the find command (follow example from the slide)
