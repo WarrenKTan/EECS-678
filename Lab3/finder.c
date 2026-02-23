@@ -31,9 +31,9 @@ int main(int argc, char *argv[])
 
   //STEP 1
 	//Initialize pipes p1, p2, and p3
-  int pipe(p1);
-  int pipe(p2);
-  int pipe(p3);
+  pipe(p1);
+  pipe(p2);
+  pipe(p3);
 
   pid_1 = fork();
   if (pid_1 == 0) {
@@ -44,14 +44,24 @@ int main(int argc, char *argv[])
 		//So, redirect standard output of this child process to p1's write end - written data will be automatically available at pipe p1's read end
 		//And, close all other pipe ends except the ones used to redirect the above OUTPUT (very important)
 
-    // p1[0] is the read end of the pipe
-    // p1[1] is the write end of the pipe
-    dup2(p1[1], STDOUT_FILENO);
-    // Output of the process is sent to the pipe
+    // duplicated used pipes
+    dup2(p1[1], STDOUT_FILENO); //write to p1
+
+    // close all pipelines since used pipelines are already duplicated
+    close(p1[0]);
+    close(p1[1]);
+    close(p2[0]);
+    close(p2[1]);
+    close(p3[0]);
+    close(p3[1]);
 
     //STEP 3
     //Prepare a command string representing the find command (follow example from the slide)
     //Invoke execl for bash and find (use BASH_EXEC and FIND_EXEC as paths)
+    
+    // redirect output to pipeline
+    // find $1 -name '*'.[h]  
+    execl(FIND_EXEC, "find", argv[1], "-name", "*.h", NULL);
 
     exit(0);
   }
@@ -66,8 +76,22 @@ int main(int argc, char *argv[])
 		//So, redirect standard output of this child process to p2's write end - written data will be automatically available at pipe p2's read end
 		//And, close all other pipe ends except the ones used to redirect the above two INPUT/OUTPUT (very important)
 
+    // duplicated used pipes
+    dup2(p1[0], STDIN_FILENO); //read from p1
+    dup2(p2[1], STDOUT_FILENO); //write to p2
+
+    // close all pipelines since used pipelines are already duplicated
+    close(p1[0]);
+    close(p1[1]);
+    close(p2[0]);
+    close(p2[1]);
+    close(p3[0]);
+    close(p3[1]);
+
     //STEP 5
     //Invoke execl for xargs and grep (use XARGS_EXEC and GREP_EXEC as paths)
+    // xargs grep -c $2
+    execl(XARGS_EXEC, "xargs", "grep", "-c", argv[2], NULL);
 
     exit(0);
   }
@@ -82,8 +106,22 @@ int main(int argc, char *argv[])
 		//So, redirect standard output of this child process to p3's write end - written data will be automatically available at pipe p3's read end
 		//And, close all other pipe ends except the ones used to redirect the above two INPUT/OUTPUT (very important)
 
+    // duplicated used pipes
+    dup2(p2[0], STDIN_FILENO); //read from p2
+    dup2(p3[1], STDOUT_FILENO); //write to p3
+
+    // close all pipelines since used pipelines are already duplicated
+    close(p1[0]);
+    close(p1[1]);
+    close(p2[0]);
+    close(p2[1]);
+    close(p3[0]);
+    close(p3[1]);
+
     //STEP 7
     //Invoke execl for sort (use SORT_EXEC as path)
+    // sort -t : +1.0 -2.0 --numeric --reverse
+    execl(SORT_EXEC, "sort", "-t", ":", "-k2,2nr", NULL);
 
     exit(0);
   }
@@ -97,11 +135,31 @@ int main(int argc, char *argv[])
 		//Output of this child process should directly be to the standard output and NOT to any pipe
 		//And, close all other pipe ends except the ones used to redirect the above INPUT (very important)
 
+    // duplicated used pipes
+    dup2(p3[0], STDIN_FILENO); //read from p3
+
+    // close all pipelines since used pipelines are already duplicated
+    close(p1[0]);
+    close(p1[1]);
+    close(p2[0]);
+    close(p2[1]);
+    close(p3[0]);
+    close(p3[1]);
+
     //STEP 8
     //Invoke execl for head (use HEAD_EXEC as path). Print only the first 5 results in the output
+    // head --lines=$3
+    execl(HEAD_EXEC, "head", "-n", "5", NULL);
 
     exit(0);
   }
+
+  close(p1[0]);
+  close(p1[1]);
+  close(p2[0]);
+  close(p2[1]);
+  close(p3[0]);
+  close(p3[1]);
 
   if ((waitpid(pid_1, &status, 0)) == -1) {
     fprintf(stderr, "Process 1 encountered an error. ERROR%d", errno);
