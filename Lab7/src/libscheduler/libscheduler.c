@@ -38,6 +38,50 @@ static float totalTurnaroundTime = 0;
 static float totalResponseTime = 0;
 static int numJobs = 0;
 
+int fcfs(const void *a, const void *b)
+{
+  job_t *job1 = (job_t *)a;
+  job_t *job2 = (job_t *)b;
+
+  return job1->arrivalTime - job2->arrivalTime;
+}
+
+int sjf(const void *a, const void *b)
+{
+  job_t *job1 = (job_t *)a;
+  job_t *job2 = (job_t *)b;
+
+  return job1->runningTime - job2->runningTime;
+}
+
+int psjf(const void *a, const void *b)
+{
+  job_t *job1 = (job_t *)a;
+  job_t *job2 = (job_t *)b;
+
+  return job1->remainingTime - job2->remainingTime;
+}
+
+int psjf(const void *a, const void *b)
+{
+  job_t *job1 = (job_t *)a;
+  job_t *job2 = (job_t *)b;
+
+  return job1->remainingTime - job2->remainingTime;
+}
+
+int pri(const void *a, const void *b)
+{
+  job_t *job1 = (job_t *)a;
+  job_t *job2 = (job_t *)b;
+
+  int prio = j1->priority - j2->priority;
+  if(prio != 0)
+    return prio;
+
+  return j1->arrival_time - j2->arrival_time;
+}
+
 /**
   Initalizes the scheduler.
  
