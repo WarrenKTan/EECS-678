@@ -96,7 +96,38 @@ int pri(const void *a, const void *b)
 */
 void scheduler_start_up(int cores, scheme_t scheme)
 {
+  numCores = cores;
+  currentScheme = scheme;
 
+  // allocate memory to job array
+  cores = malloc(sizeof(job_t *) * numCores);
+  for(int i = 0; i < numCores; i++)
+    cores[i] = NULL; // initialize jobs to NULL
+
+  // define which scheme to use
+  // PPRI and RR use PRI and FCFS priorities respectively.
+  // Their differences appear in scheduling new jobs.
+  switch(scheme)
+  {
+    case FCFS:
+      priqueue_init(&queue, fcfs); 
+      break;
+    case SJF:
+      priqueue_init(&queue, sjf); 
+      break;
+    case PSJF:
+      priqueue_init(&queue, psjf); 
+      break;
+    case PRI:
+      priqueue_init(&queue, pri); 
+      break;
+    case PPRI:
+      priqueue_init(&queue, pri); 
+      break;
+    case RR:
+      priqueue_init(&queue, fcfs); 
+      break;
+  }
 }
 
 
