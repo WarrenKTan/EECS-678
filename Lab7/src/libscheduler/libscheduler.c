@@ -16,7 +16,15 @@
 */
 typedef struct _job_t
 {
+    int jobID;
+    int arrivalTime;
+    int runningTime;
+    int remainingTime;
+    int priority;
 
+    int startTime;
+    int lastStartTime;
+    int finishTime;
 } job_t;
 
 
