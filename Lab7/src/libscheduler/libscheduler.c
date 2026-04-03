@@ -27,6 +27,16 @@ typedef struct _job_t
     int finishTime;
 } job_t;
 
+static priqueue_t queue;
+static scheme_t currentScheme;
+
+static job_t **cores;
+static int numCores;
+
+static float totalWaitingTime = 0;
+static float totalTurnaroundTime = 0;
+static float totalResponseTime = 0;
+static int numJobs = 0;
 
 /**
   Initalizes the scheduler.
