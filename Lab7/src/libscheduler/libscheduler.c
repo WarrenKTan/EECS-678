@@ -27,17 +27,19 @@ typedef struct _job_t
     int finishTime;
 } job_t;
 
-static priqueue_t queue;
-static scheme_t currentScheme;
+static priqueue_t queue; // priority queue using the priority scheme defined in initialisation
+static scheme_t currentScheme; // the current scheme being used
 
-static job_t **cores;
-static int numCores;
+static job_t **coresArray; // array to hold cores
+static int numCores; // total number of cores in the system
 
+// used for statistics (averages)
 static float totalWaitingTime = 0;
-static float totalTurnaroundTime = 0;
 static float totalResponseTime = 0;
-static int numJobs = 0;
+static float totalTurnaroundTime = 0;
+static int numJobs = 0; // number of currently active jobs
 
+// each priority function a priorityqueue should be able to use
 int fcfs(const void *a, const void *b)
 {
   job_t *job1 = (job_t *)a;
@@ -62,24 +64,38 @@ int psjf(const void *a, const void *b)
   return job1->remainingTime - job2->remainingTime;
 }
 
-int psjf(const void *a, const void *b)
-{
-  job_t *job1 = (job_t *)a;
-  job_t *job2 = (job_t *)b;
-
-  return job1->remainingTime - job2->remainingTime;
-}
-
 int pri(const void *a, const void *b)
 {
   job_t *job1 = (job_t *)a;
   job_t *job2 = (job_t *)b;
 
-  int prio = j1->priority - j2->priority;
+  int prio = job1->priority - job2->priority;
   if(prio != 0)
     return prio;
 
-  return j1->arrival_time - j2->arrival_time;
+  return job1->arrivalTime - job2->arrivalTime;
+}
+
+int fifo(const void *a, const void *b)
+{
+  return 0;
+}
+
+// find the first idling core
+int findCore()
+{
+  // check every core
+  for(int i = 0; i < numCores; i++)
+  {
+    // core is idle
+    if(coresArray[i] == NULL)
+    {
+      return i;
+    }
+  }
+
+  // no cores available. return -1
+  return -1;
 }
 
 /**
@@ -100,9 +116,9 @@ void scheduler_start_up(int cores, scheme_t scheme)
   currentScheme = scheme;
 
   // allocate memory to job array
-  cores = malloc(sizeof(job_t *) * numCores);
+  coresArray = malloc(sizeof(job_t *) * numCores);
   for(int i = 0; i < numCores; i++)
-    cores[i] = NULL; // initialize jobs to NULL
+    coresArray[i] = NULL; // initialize jobs to NULL
 
   // define which scheme to use
   // PPRI and RR use PRI and FCFS priorities respectively.
@@ -125,7 +141,7 @@ void scheduler_start_up(int cores, scheme_t scheme)
       priqueue_init(&queue, pri); 
       break;
     case RR:
-      priqueue_init(&queue, fcfs); 
+      priqueue_init(&queue, fifo); 
       break;
   }
 }
@@ -153,7 +169,105 @@ void scheduler_start_up(int cores, scheme_t scheme)
  */
 int scheduler_new_job(int job_number, int time, int running_time, int priority)
 {
-	return -1;
+  // make a new job
+  job_t *job = malloc(sizeof(job_t));
+  
+  job->jobID = job_number;
+  job->arrivalTime = time;
+  job->runningTime = running_time;
+  job->remainingTime = running_time;
+  job->priority = priority;
+  // job has not started yet
+  job->startTime = -1;
+
+  numJobs++;
+
+  // attempt to find a core to run the job immediately
+  int availableCore = findCore();
+  
+  // a core is available/idle
+  if(availableCore != -1)
+  {
+    // start the job after creation
+    coresArray[availableCore] = job;
+    if (job->startTime == -1)
+    {
+      job->startTime = time;
+    }
+    job->lastStartTime = time;
+    return availableCore;
+  }
+  
+  // holds the core number whose job should be replaced with the new incoming job
+  int replacedCore = -1;
+
+  // preemption for PSJF
+  // if a job arrives and is the new shortest job,
+  // preemption is required to ensure that PSJF is followed properly
+  if(currentScheme == PSJF)
+  {
+    // attempt to find the first violator of PSJF
+    for(int i = 0; i < numCores; i++)
+    {
+      // the current job running at the given core's index
+      job_t *running = coresArray[i];
+      
+      // check if the current running job should be replaced by checking the remainingTime
+      if(job->remainingTime < running->remainingTime - (time - running->lastStartTime)){
+        if(replacedCore == -1 ||coresArray[replacedCore]->remainingTime - (time - coresArray[replacedCore]->lastStartTime) < (running->remainingTime - (time - running->lastStartTime)))
+        {
+          replacedCore = i;
+        }
+      }
+    }
+  }
+
+  // preemption for PPRI
+  // if a job arrives and is the new shortest job,
+  // preemption is required to ensure that PSJF is followed properly
+  if(currentScheme == PPRI)
+  {
+    // attempt to find the first violator of PSJF
+    for(int i = 0; i < numCores; i++)
+    {
+      // the current job running at the given core's index
+      job_t *running = coresArray[i];
+      
+      // check if the current running job should be replaced by checking the priority
+      if(job->priority < running->priority){
+        if(replacedCore == -1 || coresArray[replacedCore]->priority < running->priority)
+        {
+          replacedCore = i;
+        }
+      }
+    }
+  }
+
+  // one of the cores' jobs should be replaced
+  if(replacedCore != -1)
+  {
+    // the current job running at the given core's index
+    job_t *running = coresArray[replacedCore];
+    
+    // decrement the remainingTime of the currently running job
+    running->remainingTime -= time - running->lastStartTime;
+    
+    // move the current job back into the 'line'
+    priqueue_offer(&queue, coresArray[replacedCore]);
+    
+    // start the new job
+    coresArray[replacedCore] = job;
+    if (job->startTime == -1)
+    {
+      job->startTime = time;
+    }
+    job->lastStartTime = time;
+    return replacedCore;
+  }
+
+  // no scheduling changes should be made
+	priqueue_offer(&queue, job);
+  return -1;
 }
 
 
@@ -173,7 +287,43 @@ int scheduler_new_job(int job_number, int time, int running_time, int priority)
  */
 int scheduler_job_finished(int core_id, int job_number, int time)
 {
-	return -1;
+	// get the finished job from the cores array
+  job_t *job = coresArray[core_id];
+
+  // update the finish time
+  job->finishTime = time;
+
+  // increase statistics
+  totalWaitingTime += job->finishTime - job->runningTime - job->arrivalTime;
+  totalResponseTime += job->startTime - job->arrivalTime;
+  totalTurnaroundTime += job->finishTime - job->arrivalTime;
+
+  // free memory from finished job
+  free(job);
+  coresArray[core_id] = NULL;
+
+  // get the next job 
+  job_t *nextJob = priqueue_poll(&queue);
+
+  // no jobs left in queue
+  if(nextJob == NULL)
+  {
+    // continue idling
+    return -1;
+  }
+
+  // insert nextJob into the freed core
+  coresArray[core_id] = nextJob;
+  nextJob->lastStartTime = time;
+
+  // set the startTime if the job has not started execution yet
+  if(nextJob->startTime == -1)
+  {
+    nextJob->startTime = time;
+  }
+
+  // job_number of the new job scheduled to run on core core_id
+  return nextJob->jobID;
 }
 
 
@@ -192,7 +342,38 @@ int scheduler_job_finished(int core_id, int job_number, int time)
  */
 int scheduler_quantum_expired(int core_id, int time)
 {
-	return -1;
+  // find the currently running job
+  job_t *job = coresArray[core_id];
+
+  // job is NULL. core remains idle
+  if(job == NULL)
+  {
+    return -1;
+  }
+
+  // update remaining time
+  job->remainingTime -= (time - job->lastStartTime);
+
+  // no jobs waiting in the queue. Continue the current job
+  if(priqueue_size(&queue) == 0)
+  {
+    job->lastStartTime = time;
+    return job->jobID;
+  }
+
+  // put the current job at the back of queue
+  priqueue_offer(&queue, job);
+
+  // get next job
+  job_t *nextJob = priqueue_poll(&queue);
+  coresArray[core_id] = nextJob;
+
+  // update new job's start times
+  nextJob->lastStartTime = time;
+  if(nextJob->startTime == -1)
+    nextJob->startTime = time;
+
+  return nextJob->jobID;
 }
 
 
@@ -205,7 +386,7 @@ int scheduler_quantum_expired(int core_id, int time)
  */
 float scheduler_average_waiting_time()
 {
-	return 0.0;
+	return totalWaitingTime / numJobs;
 }
 
 
@@ -218,7 +399,7 @@ float scheduler_average_waiting_time()
  */
 float scheduler_average_turnaround_time()
 {
-	return 0.0;
+	return totalTurnaroundTime / numJobs;
 }
 
 
@@ -231,7 +412,7 @@ float scheduler_average_turnaround_time()
  */
 float scheduler_average_response_time()
 {
-	return 0.0;
+	return totalResponseTime / numJobs;
 }
 
 
@@ -243,7 +424,11 @@ float scheduler_average_response_time()
 */
 void scheduler_clean_up()
 {
-
+  // destroy the queue
+  priqueue_destroy(&queue);
+  
+  // free memory in the cores
+  free(coresArray);
 }
 
 
