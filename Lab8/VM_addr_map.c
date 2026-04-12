@@ -30,14 +30,27 @@ int main(int argc, char *argv[])
   }
 
   /* Allocate arrays to hold the page table and memory frames map */
-  
+  num_pages = pow(d, log_size - page_size);
+  num_frames = pow(d, phy_size - page_size);
 
-  /* Initialize page table to indicate that no pages are currently mapped to
-     physical memory */
   
+  fprintf(stdout, "Number of Pages: %x, Number of Frames: %x\n\n", num_pages, num_frames);
+
+  // int table with 'num_pages' possible indices
+  page_table = (int *)malloc(num_pages * sizeof(int));
+
+  // int map with 'num_frames' possible indices
+  mem_map = (int *)malloc(num_frames * sizeof(int));
+
+  /* Initialize page table to indicate that no pages are currently mapped to physical memory */
+  for(int i = 0; i < num_pages; i++){
+    page_table[i] = -1;
+  }
 
   /* Initialize memory map table to indicate no valid frames */
-  
+  for(int i = 0; i < num_frames; i++){
+    mem_map[i] = -1;
+  }
 
   /* Read each accessed address from input file. Map the logical address to
      corresponding physical address */
@@ -46,14 +59,39 @@ int main(int argc, char *argv[])
     sscanf(line, "0x%x", &logical_addr);
     fprintf(stdout, "Logical Address: 0x%x\n", logical_addr);
     
-	/* Calculate page number and offset from the logical address */
+	  /* Calculate page number and offset from the logical address */
+    // lower bits
+    offset = logical_addr & ((1 << page_size) - 1);
     
+    // upper bits ('page_size' length)
+    page_num = logical_addr >> page_size;
+    fprintf(stdout, "Page Number: %x\n", page_num);
 
     /* Form corresponding physical address */
-    
+    if(page_table[page_num] == -1){
+      // page fault
+      fprintf(stdout, "Page Fault!\n");
+
+      // find the next empty location to map the address
+      for(unsigned int i = 0; i < num_frames; i++){
+        if (mem_map[i] == -1) {
+          frame_num = i;
+          mem_map[i] = page_num;
+          page_table[page_num] = frame_num;
+          break;
+        }
+      }
+    }else{
+      // map the address to the found location
+      frame_num = page_table[page_num];
+    }
+    fprintf(stdout, "Frame Number: %x\n", frame_num);
+
+    physical_addr = (frame_num << page_size) | offset;
+    fprintf(stdout, "Physical Address: 0x%x\n\n", physical_addr);
 
     /* Read next line */
-    fgets(line, MAXSTR, stdin);    
+    fgets(line, MAXSTR, stdin);
   }
 
   return 0;
