@@ -57,10 +57,19 @@ int main (int argc, char *argv[])
   /* 
    * 1. find size of input file 
    */
+  if (fstat(fdin, &statbuf) == -1) {
+    err_sys("could not obtain the size of the file.");
+  }
+
+  // statbuf.st_size is the size of the fdin
+  off_t sizeOfSourceFile = statbuf.st_size;
 
   /* 
    * 2. go to the location corresponding to the last byte 
    */
+  if (lseek(fdin, sizeOfSourceFile - 1, SEEK_SET) == -1) {
+    err_sys("could not set the cursor");
+  }
 
   /* 
    * 3. write a dummy byte at the last location 
