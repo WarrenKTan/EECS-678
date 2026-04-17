@@ -74,14 +74,29 @@ int main (int argc, char *argv[])
   /* 
    * 3. write a dummy byte at the last location 
    */
+  if (lseek(fdout, sizeOfSourceFile - 1, SEEK_SET) == -1) {
+    err_sys("could not set the cursor");
+  }
+
+  if (write(fdout, "", 1) != 1) {
+    err_sys("write error");
+  }
 
   /* 
    * 4. mmap the input file 
    */
+  src = mmap(NULL, sizeOfSourceFile, PROT_READ, MAP_SHARED, fdin, 0);
+  if (src == MAP_FAILED) {
+    err_sys("mmap input error");
+  }
 
   /* 
    * 5. mmap the output file 
    */
+  dst = mmap(NULL, sizeOfSourceFile, PROT_READ | PROT_WRITE, MAP_SHARED, fdout, 0);
+  if (dst == MAP_FAILED) {
+    err_sys("mmap output error");
+  }
 
   /* 
    * 6. copy the input file to the output file 
@@ -90,7 +105,7 @@ int main (int argc, char *argv[])
      * stores what is in the memory location pointed to by src into
      * the memory location pointed to by dest.
      */
-    *dst = *src;
+  memcpy(dst, src, sizeOfSourceFile);
 } 
 
 
