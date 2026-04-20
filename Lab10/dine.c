@@ -228,14 +228,15 @@ int check_for_deadlock()
      * library call.
      */
     
+    // int TID = gettid();
+    // sprintf("/proc/self/task/%d/stat", TID);
 
     /* 
      * 2. Use fopen to open the stat file as a file stream. Open it
      * with read only permissions.
      */
 
-
-
+    // fopen();
 
 
     /* 
@@ -244,18 +245,18 @@ int check_for_deadlock()
      * HINT: Use the the * qualifier to skip tokens without storing them.
      */
 
-
-
-
-
-
+    // fscanf(filep, “%*s”); will ignore one string field that is read from 'filep'
     
+
     /* 
      * 4. Read the time values you want. Use fscanf again. 
      */ 
 
-
-
+    // write to: 
+    // static unsigned long user_progress[NUM_PHILS];
+    // static unsigned long user_time[NUM_PHILS];
+    // static unsigned long sys_progress[NUM_PHILS];
+    // static unsigned long sys_time[NUM_PHILS];
 
    
     /*
