@@ -16,7 +16,7 @@
 #define NUM_CHOPS NUM_PHILS
 #define FIELDS_TO_IGNORE 13
 
-#define DEADLOCK 1
+#define DEADLOCK 0
 #define ACTIVE_DURATION 200
 
 typedef struct {
@@ -228,16 +228,18 @@ int check_for_deadlock()
      * library call.
      */
     
-    // int TID = gettid();
-    // sprintf("/proc/self/task/%d/stat", TID);
+    sprintf(filename, "/proc/self/task/%d/stat", diners[i].tid);
 
     /* 
      * 2. Use fopen to open the stat file as a file stream. Open it
      * with read only permissions.
      */
 
-    // fopen();
-
+    statf = fopen(filename, "r");
+    if(!statf){
+      perror("Error opening file");
+      continue;
+    }
 
     /* 
      * 3. Seek over uninteresting fields. Use fscanf to perform the seek.  You
@@ -245,35 +247,38 @@ int check_for_deadlock()
      * HINT: Use the the * qualifier to skip tokens without storing them.
      */
 
-    // fscanf(filep, “%*s”); will ignore one string field that is read from 'filep'
-    
+    // skip the first 13 fields of data (Lab 10 Slides Page 13)
+    for(j = 0; j < 13; j++){
+      fscanf(statf, "%*s");
+    }
 
     /* 
      * 4. Read the time values you want. Use fscanf again. 
      */ 
 
-    // write to: 
-    // static unsigned long user_progress[NUM_PHILS];
-    // static unsigned long user_time[NUM_PHILS];
-    // static unsigned long sys_progress[NUM_PHILS];
-    // static unsigned long sys_time[NUM_PHILS];
+    fscanf(statf, "%lu %lu", &new_user_time, &new_sys_time);
 
-   
     /*
      * 5. Use time values to determine if deadlock has occurred.
      */
-   
- 
 
+    // check if new_user_time or new_sys_time is being updated
+    if(user_time[i] != new_user_time || sys_time[i] != new_sys_time){
+      deadlock = 0;
+    }
 
+    // update progress and time indices
+    user_progress[i] = new_user_time - user_time[i];
+    sys_progress[i]  = new_sys_time - sys_time[i];
 
-
-
+    user_time[i] = new_user_time;
+    sys_time[i]  = new_sys_time;
 
     /*
      * 6. Close the stat file stream 
      */
 
+    fclose(statf);
   }
   
   return deadlock;
